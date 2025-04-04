@@ -1,8 +1,6 @@
 name: sheen_translator
 description: تطبيق ترجمة متعدد اللغات
-
 publish_to: 'none'
-
 version: 1.0.0+1
 
 environment:
