@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:translator/translator.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 void main() {
   runApp(SheenApp());
@@ -9,86 +10,119 @@ class SheenApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Sheen',
-      theme: ThemeData(
-        primarySwatch: Colors.purple,
-      ),
-      home: TranslatePage(),
+      title: 'Sheen Translator',
+      theme: ThemeData(primarySwatch: Colors.teal),
+      home: TranslatorScreen(),
     );
   }
 }
 
-class TranslatePage extends StatefulWidget {
+class TranslatorScreen extends StatefulWidget {
   @override
-  _TranslatePageState createState() => _TranslatePageState();
+  _TranslatorScreenState createState() => _TranslatorScreenState();
 }
 
-class _TranslatePageState extends State<TranslatePage> {
-  final translator = GoogleTranslator();
-  final inputController = TextEditingController();
-  String translatedText = "";
+class _TranslatorScreenState extends State<TranslatorScreen> {
+  TextEditingController inputController = TextEditingController();
+  String translatedText = '';
+  String fromLang = 'auto';
+  String toLang = 'en';
 
-  String fromLang = "en"; // من لغة
-  String toLang = "ar"; // إلى لغة
+  final Map<String, String> languages = {
+    'العربية': 'ar',
+    'الإنجليزية': 'en',
+    'الفرنسية': 'fr',
+    'التركية': 'tr',
+    'الألمانية': 'de',
+    'الإيطالية': 'it',
+    'الإسبانية': 'es',
+    'الهندية': 'hi',
+  };
 
-  void translate() async {
-    final result = await translator.translate(
-      inputController.text,
-      from: fromLang,
-      to: toLang,
-    );
-    setState(() {
-      translatedText = result.text;
-    });
+  Future<void> translateText() async {
+    final url = Uri.parse(
+        'https://translate.googleapis.com/translate_a/single?client=gtx&sl=$fromLang&tl=$toLang&dt=t&q=${Uri.encodeComponent(inputController.text)}');
+
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final jsonData = json.decode(response.body);
+      setState(() {
+        translatedText = jsonData[0][0][0];
+      });
+    } else {
+      setState(() {
+        translatedText = 'فشلت الترجمة، جرّب مرة ثانية';
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Sheen Translator")),
+      appBar: AppBar(title: Text('Sheen - مترجم النصوص')),
       body: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             TextField(
               controller: inputController,
-              decoration: InputDecoration(labelText: "اكتب النص هنا"),
+              decoration: InputDecoration(
+                labelText: 'اكتب النص هنا',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 4,
             ),
             SizedBox(height: 10),
             Row(
               children: [
-                Text("من: "),
-                DropdownButton<String>(
-                  value: fromLang,
-                  onChanged: (newVal) => setState(() => fromLang = newVal!),
-                  items: ['en', 'ar', 'fr', 'tr', 'de', 'es', 'ru', 'it']
-                      .map((lang) => DropdownMenuItem(
-                            child: Text(lang),
-                            value: lang,
-                          ))
-                      .toList(),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: fromLang,
+                    items: languages.entries
+                        .map((e) => DropdownMenuItem(
+                              child: Text('من ${e.key}'),
+                              value: e.value,
+                            ))
+                        .toList()
+                          ..insert(
+                            0,
+                            DropdownMenuItem(
+                              child: Text('تلقائي'),
+                              value: 'auto',
+                            ),
+                          ),
+                    onChanged: (val) {
+                      setState(() => fromLang = val ?? 'auto');
+                    },
+                  ),
                 ),
-                Text("  إلى: "),
-                DropdownButton<String>(
-                  value: toLang,
-                  onChanged: (newVal) => setState(() => toLang = newVal!),
-                  items: ['en', 'ar', 'fr', 'tr', 'de', 'es', 'ru', 'it']
-                      .map((lang) => DropdownMenuItem(
-                            child: Text(lang),
-                            value: lang,
-                          ))
-                      .toList(),
+                SizedBox(width: 10),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: toLang,
+                    items: languages.entries
+                        .map((e) => DropdownMenuItem(
+                              child: Text('إلى ${e.key}'),
+                              value: e.value,
+                            ))
+                        .toList(),
+                    onChanged: (val) {
+                      setState(() => toLang = val ?? 'en');
+                    },
+                  ),
                 ),
               ],
             ),
+            SizedBox(height: 15),
             ElevatedButton(
-              onPressed: translate,
-              child: Text("ترجم"),
+              onPressed: translateText,
+              child: Text('ترجم'),
             ),
-            SizedBox(height: 20),
+            SizedBox(height: 15),
             Text(
               translatedText,
-              style: TextStyle(fontSize: 20),
+              style: TextStyle(fontSize: 18),
             ),
           ],
         ),
